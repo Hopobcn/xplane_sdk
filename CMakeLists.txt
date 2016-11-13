@@ -1,12 +1,12 @@
 # Set up the imported targets for X-Plane plugin libraries:
 
 if(APPLE)
-    set(XPLANE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sdk/Libraries/Mac/")
+    set(XPLANE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sdk/Libraries/Mac")
 elseif(WIN32)
-    set(XPLANE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sdk/Libraries/Win/")
+    set(XPLANE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sdk/Libraries/Win")
 endif()
 
-set(XPLANE_INCLUDES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/" PARENT_SCOPE)
+set(XPLANE_INCLUDES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders" CACHE INTERNAL "XPLANE SDK headers")
 
 if(APPLE OR WIN32)
 
