@@ -1,72 +1,100 @@
 # Set up the imported targets for X-Plane plugin libraries:
 
-IF(APPLE)
-    SET(XPLANE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sdk/Libraries/Mac/")
-ELSEIF(WIN32)
-    SET(XPLANE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sdk/Libraries/Win/")
-ENDIF()
+if(APPLE)
+    set(XPLANE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sdk/Libraries/Mac/")
+elseif(WIN32)
+    set(XPLANE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sdk/Libraries/Win/")
+endif()
 
-SET(XPLANE_INCLUDES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/" PARENT_SCOPE)
+set(XPLANE_INCLUDES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/" PARENT_SCOPE)
 
-IF(APPLE OR WIN32)
+if(APPLE OR WIN32)
 
-    IF(APPLE)
-        FIND_LIBRARY(XPLM_LIBRARY XPLM "${XPLANE_LIBRARY_PATH}")
-	    FIND_LIBRARY(XPWIDGETS_LIBRARY XPWidgets "${XPLANE_LIBRARY_PATH}")
+    if(APPLE)
+        find_library(XPLM_LIBRARY XPLM "${XPLANE_LIBRARY_PATH}")
+        find_library(XPWIDGETS_LIBRARY XPWidgets "${XPLANE_LIBRARY_PATH}")
         add_library(xplm STATIC IMPORTED GLOBAL)
         add_library(xpwidgets STATIC IMPORTED GLOBAL)
-        SET_PROPERTY(TARGET xplm PROPERTY IMPORTED_LOCATION "${XPLM_LIBRARY}")
-        SET_PROPERTY(TARGET xpwidgets PROPERTY IMPORTED_LOCATION "${XPWIDGETS_LIBRARY}")
-    ELSEIF(WIN32)
-        FIND_LIBRARY(XPLM_LIBRARY XPLM_64 "${XPLANE_LIBRARY_PATH}")
-	    FIND_LIBRARY(XPWIDGETS_LIBRARY XPWidgets_64 "${XPLANE_LIBRARY_PATH}")
+        set_property(TARGET xplm PROPERTY IMPORTED_LOCATION "${XPLM_LIBRARY}")
+        set_property(TARGET xpwidgets PROPERTY IMPORTED_LOCATION "${XPWIDGETS_LIBRARY}")
+    elseif(WIN32)
+        find_library(XPLM_LIBRARY XPLM_64 "${XPLANE_LIBRARY_PATH}")
+        find_library(XPWIDGETS_LIBRARY XPWidgets_64 "${XPLANE_LIBRARY_PATH}")
         add_library(xplm SHARED IMPORTED GLOBAL)
         add_library(xpwidgets SHARED IMPORTED GLOBAL)
-        SET_PROPERTY(TARGET xplm PROPERTY IMPORTED_IMPLIB "${XPLM_LIBRARY}")
-        SET_PROPERTY(TARGET xpwidgets PROPERTY IMPORTED_IMPLIB "${XPWIDGETS_LIBRARY}")
-    ENDIF()
-    SET(XPLM_LIBRARY "${XPLM_LIBRARY}" PARENT_SCOPE)
-    SET(XPWIDGETS_LIBRARY "${XPWIDGETS_LIBRARY}" PARENT_SCOPE)
-ENDIF()
+        set_property(TARGET xplm PROPERTY IMPORTED_IMPLIB "${XPLM_LIBRARY}")
+        set_property(TARGET xpwidgets PROPERTY IMPORTED_IMPLIB "${XPWIDGETS_LIBRARY}")
+    endif()
 
-# For some reason this doesn't work. It's not worth wasting more time on fixing it, so
-# I'll manually include the directories below
-SET_PROPERTY(TARGET xplm APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/XPLM" "${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/Wrappers")
-SET_PROPERTY(TARGET xpwidgets APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/XPLM" "${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/Widgets" "${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/Wrappers")
+    set(XPLM_LIBRARY "${XPLM_LIBRARY}" PARENT_SCOPE)
+    set(XPWIDGETS_LIBRARY "${XPWIDGETS_LIBRARY}" PARENT_SCOPE)
 
-FILE(GENERATE OUTPUT "includes.txt" CONTENT "$<TARGET_PROPERTY:xplm,INTERFACE_INCLUDE_DIRECTORIES>\n")
+    # For some reason this doesn't work. It's not worth wasting more time on fixing it, so
+    # I'll manually include the directories below
+    set_property(TARGET xplm APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/XPLM>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/Wrappers>
+        $<INSTALL_INTERFACE:sdk/CHeaders/XPLM>
+        $<INSTALL_INTERFACE:sdk/CHeaders/Wrappers>
+    )
+    set_property(TARGET xpwidgets APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/XPLM>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/Widgets>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/CHeaders/Wrappers>
+        $<INSTALL_INTERFACE:sdk/CHeaders/XPLM>
+        $<INSTALL_INTERFACE:sdk/CHeaders/Widgets>
+        $<INSTALL_INTERFACE:sdk/CHeaders/Wrappers>
+    )
+
+    # for debug purposes:
+    file(GENERATE OUTPUT "includes-xplm.txt" CONTENT "$<TARGET_PROPERTY:xplm,INTERFACE_INCLUDE_DIRECTORIES>\n")
+    file(GENERATE OUTPUT "includes-xpwi.txt" CONTENT "$<TARGET_PROPERTY:xpwidgets,INTERFACE_INCLUDE_DIRECTORIES>\n")
+
+elseif(UNIX)
+
+    ## XPLANE SDK doesn't include any Linux static or shared library to be imported here
+    ## -- documentation in [ www.xsquawkbox.net/xpsdk/mediawiki/BuildInstall ] specifies
+    ## -- that in Linux, those symbols are left undefined and X-Plane itself defines them
+
+endif()
+
+
 
 # Set up an X-Plane plugin
-FUNCTION(add_xplane_plugin library_name ...)
-    SET(FILES ${ARGV})
-    LIST(REMOVE_AT FILES 0)
-    MESSAGE(STATUS "Making X-Plane plugin called ${library_name}")
+function(add_xplane_plugin library_name ...)
+    set(FILES ${ARGV})
+    list(REMOVE_AT FILES 0)
+    message(STATUS "Making X-Plane plugin called ${library_name} with (${FILES}) files")
 
-    IF(APPLE)
-        ADD_EXECUTABLE(${library_name} ${FILES})
-        TARGET_COMPILE_DEFINITIONS(${library_name} PUBLIC -DAPL=1 -DIBM=0 -DLIN=0)
-        SET_TARGET_PROPERTIES(${library_name} PROPERTIES OUTPUT_NAME "mac.xpl")
-    ELSEIF(UNIX)
-        ADD_LIBRARY(${library_name} SHARED ${FILES})
-        TARGET_COMPILE_DEFINITIONS(${library_name} PUBLIC -DAPL=0 -DIBM=0 -DLIN=1)
-        SET_TARGET_PROPERTIES(${library_name} PROPERTIES OUTPUT_NAME "lin.xpl")
-    ELSEIF(WIN32)
-        ADD_LIBRARY(${library_name} MODULE ${FILES})
-        TARGET_COMPILE_OPTIONS(${library_name} PRIVATE "/MD$<$<CONFIG:Debug>:d>")
-        TARGET_COMPILE_DEFINITIONS(${library_name} PUBLIC -DAPL=0 -DIBM=1 -DLIN=0)
-        TARGET_COMPILE_DEFINITIONS(${library_name} PUBLIC -D_CRT_SECURE_NO_WARNINGS /bigobj)
-        SET_TARGET_PROPERTIES(${library_name} PROPERTIES OUTPUT_NAME "win.xpl")
-    ENDIF()
+    if(APPLE)
+        add_executable(${library_name} ${FILES})
+        target_compile_definitions(${library_name} PUBLIC -DAPL=1 -DIBM=0 -DLIN=0)
+        set_target_properties(${library_name} PROPERTIES OUTPUT_NAME "mac.xpl")
+    elseif(UNIX)
+        add_library(${library_name} SHARED ${FILES})
+        target_compile_definitions(${library_name} PUBLIC -DAPL=0 -DIBM=0 -DLIN=1)
+        set_target_properties(${library_name} PROPERTIES OUTPUT_NAME "lin.xpl")
+    elseif(WIN32)
+        add_library(${library_name} MODULE ${FILES})
+        target_compile_options(${library_name} PRIVATE "/MD$<$<CONFIG:Debug>:d>")
+        target_compile_definitions(${library_name} PUBLIC -DAPL=0 -DIBM=1 -DLIN=0)
+        target_compile_definitions(${library_name} PUBLIC -D_CRT_SECURE_NO_WARNINGS /bigobj)
+        set_target_properties(${library_name} PROPERTIES OUTPUT_NAME "win.xpl")
+    endif()
 
-    TARGET_COMPILE_DEFINITIONS(${library_name} PUBLIC -DXPLM200=1 -DXPLM210=1)
+    target_compile_definitions(${library_name} PUBLIC -DXPLM200=1 -DXPLM210=1)
 
     #link flags
-    IF(APPLE)
-        SET_PROPERTY(TARGET ${library_name} APPEND_STRING PROPERTY LINK_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fPIC -fvisibility=hidden -bundle")
-    ELSEIF(UNIX)
-        SET_PROPERTY(TARGET ${library_name} APPEND_STRING PROPERTY LINK_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -rdynamic -nodefaultlibs -undefined_warning -fPIC -fvisibility=hidden")
-    ENDIF()
+    if(APPLE)
+        set_property(TARGET ${library_name} APPEND_STRING PROPERTY LINK_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fPIC -fvisibility=hidden -bundle")
+    elseif(UNIX)
+        set_property(TARGET ${library_name} APPEND_STRING PROPERTY LINK_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -rdynamic -nodefaultlibs -undefined_warning -fPIC -fvisibility=hidden")
+    endif()
 
-	TARGET_LINK_LIBRARIES(${library_name} PUBLIC ${XPLM_LIBRARY} ${XPWIDGETS_LIBRARY})
-    TARGET_INCLUDE_DIRECTORIES(${library_name} PUBLIC "${XPLANE_INCLUDES_PATH}/XPLM" "${XPLANE_INCLUDES_PATH}/Widgets" "${XPLANE_INCLUDES_PATH}/Wrappers")
-ENDFUNCTION(add_xplane_plugin)
+    if (APPLE OR WIN32)
+        # Since XPLANE SDK only provides libraries for MAC & Windows, link againts them here.
+        target_link_libraries(${library_name} PUBLIC ${XPLM_LIBRARY} ${XPWIDGETS_LIBRARY})
+    endif(APPLE OR WIN32)
+
+    target_include_directories(${library_name} PUBLIC "${XPLANE_INCLUDES_PATH}/XPLM" "${XPLANE_INCLUDES_PATH}/Widgets" "${XPLANE_INCLUDES_PATH}/Wrappers")
+endfunction(add_xplane_plugin)
